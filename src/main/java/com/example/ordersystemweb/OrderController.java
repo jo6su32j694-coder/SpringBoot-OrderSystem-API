@@ -30,4 +30,10 @@ public class OrderController {
         //Controller只負責收參數，核心扣庫存邏輯全部交給Service處理
         return orderService.processPurchase(itemName);
     }
+
+    //監聽獲取歷史訂單的 Get 請求
+    @GetMapping("/order-list")
+    public List<Order> getOrderList(){
+        return orderService.getAllOrders();
+    }
 }

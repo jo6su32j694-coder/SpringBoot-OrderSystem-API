@@ -1,8 +1,11 @@
 package com.example.ordersystemweb;
 
+import org.aspectj.weaver.ast.Or;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.stereotype.Service;
 import jakarta.annotation.PostConstruct;
+import org.springframework.web.bind.annotation.GetMapping;
+
 import java.util.List;
 
 @Service //關鍵註解：讓 Spring Boot 知道這是一個Service組件
@@ -10,6 +13,8 @@ public class OrderService {
 
     @Autowired //注入資料庫倉儲層(Repository)
     private ProductRepository productRepository;
+    @Autowired
+    private OrderRepository orderRepository;
 
     //@PostConstruct註解，當Service初始化完成後，會自動執行這個方法
     //如果發現資料庫是全空的，就把if內的資料塞進MySQL裡
@@ -46,15 +51,22 @@ public class OrderService {
         }
 
         if (targetProduct.getStock()>0){
+            //扣除庫存並更新資料表
             targetProduct.setStock(targetProduct.getStock()-1);
-
-            //將扣除後的結果「存回」資料庫中更新
             productRepository.save(targetProduct);
 
-            return "購買成功！「"+targetProduct.getName()+"」已加入購物車，剩餘庫存： "+targetProduct.getStock();
+            //建立訂單物件，並存入 orders 資料表中
+            Order newOrder = new Order(targetProduct,1);//購買一個
+            orderRepository.save(newOrder);//儲存訂單到資料庫
+
+            return "購買成功！「"+targetProduct.getName()+"」已加入購物車，並生成訂單編號 #"+newOrder.getId();
         }else{
             return "失敗：商品「"+targetProduct.getName()+"」已售罄，無法購買！";
         }
     }
 
+    //獲取所有歷史訂單紀錄
+    public List<Order> getAllOrders(){
+        return orderRepository.findAll();
+    }
 }
