@@ -2,6 +2,7 @@ package com.example.ordersystemweb;
 
 import org.aspectj.weaver.ast.Or;
 import org.springframework.beans.factory.annotation.Autowired;
+import org.springframework.http.HttpStatus;
 import org.springframework.stereotype.Service;
 import jakarta.annotation.PostConstruct;
 import org.springframework.web.bind.annotation.GetMapping;
@@ -43,13 +44,14 @@ public class OrderService {
 
     //業務邏輯：處理購買與扣除資料庫庫存
     public String processPurchase(String itemName){
-        //1.去資料庫找有沒有這個商品
         Product targetProduct = productRepository.findById(itemName).orElse(null);
 
+        //1.找不到商品 -> 拋出 404 Not found
         if (targetProduct == null){
-            return "錯誤：找不到名為「"+itemName+"」的商品！";
+             throw new BusinessException("錯誤：找不到名為「"+itemName+"」的商品！",HttpStatus.NOT_FOUND);
         }
 
+        //2.庫存不足 -> 拋出 400 Bad Request
         if (targetProduct.getStock()>0){
             //扣除庫存並更新資料表
             targetProduct.setStock(targetProduct.getStock()-1);
@@ -61,7 +63,7 @@ public class OrderService {
 
             return "購買成功！「"+targetProduct.getName()+"」已加入購物車，並生成訂單編號 #"+newOrder.getId();
         }else{
-            return "失敗：商品「"+targetProduct.getName()+"」已售罄，無法購買！";
+            throw new BusinessException("商品「"+targetProduct.getName()+"」已售罄，無法購買！",HttpStatus.BAD_REQUEST);
         }
     }
 
