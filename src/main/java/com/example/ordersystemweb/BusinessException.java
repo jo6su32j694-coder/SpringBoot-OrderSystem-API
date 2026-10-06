@@ -7,7 +7,7 @@ public class BusinessException extends RuntimeException{
 
     public BusinessException(String message,HttpStatus status){
         super(message);
-        this.status=status;
+        this.status = status;
     }
 
     public HttpStatus getStatus(){
