@@ -14,11 +14,13 @@ public class OrderController {
     @Autowired
     private OrderService orderService;
 
-    @GetMapping("/products/milk-tea")
-    public Result<Product> getMilkTea(){
-        Product product = orderService.getProductByName("奶茶");
+    //使用 {productName} 作為動態路徑
+    @GetMapping("/products/{productName}")
+    public Result<Product> getProduct(@PathVariable String productName){
+        //Spring Boot 會自動把網址中 {productName} 的位置，自動帶入到變數 productName 裡
+        Product product = orderService.getProductByName(productName);
         //包裹後回傳：success:true, message=成功,data=商品物件
-        return Result.success("成功獲取奶茶資料",product);
+        return Result.success("成功獲取「"+productName+"」的資料",product);
     }
 
     @GetMapping("/item-list")

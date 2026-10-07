@@ -1,6 +1,5 @@
 package com.example.ordersystemweb;
 
-
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.data.domain.Page;
 import org.springframework.data.domain.PageRequest;
@@ -34,13 +33,15 @@ public class OrderService {
 
     //業務邏輯：取得單一商品
     public Product getProductByName(String name){
-        //findById 會回傳一個Optional,如果找不到就回傳null
-        return productRepository.findById(name).orElse(null);
+        //減少對 orElse(null) 的依賴，利用 Optional 的高階語法簡化 if 判斷
+        //productRepository.findById() 回傳的是一個 Optional<Product>
+        return productRepository.findById(name)
+                .orElseThrow(()->new BusinessException("找不到名為「"+name+"」的商品！",HttpStatus.NOT_FOUND));
     }
 
     //業務邏輯：取得所有商品清單
     public List<Product> getAllProducts(){
-        //findAll 直接撈出Product資料庫的所有資料
+        //findAll 直接撈出 Product 資料庫的所有資料
         return productRepository.findAll();
     }
 
@@ -51,14 +52,11 @@ public class OrderService {
         if(quantity < 1){
             throw new BusinessException("購買數量必須大於 0",HttpStatus.BAD_REQUEST);
         }
-        Product targetProduct = productRepository.findById(itemName).orElse(null);
 
-        //1.找不到商品 -> 拋出 404 Not found
-        if (targetProduct == null){
-             throw new BusinessException("錯誤：找不到名為「"+itemName+"」的商品！",HttpStatus.NOT_FOUND);
-        }
+        //呼叫上方方法，自動完成防禦
+        Product targetProduct = getProductByName(itemName);
 
-        //2.庫存不足 -> 拋出 400 Bad Request
+        //庫存不足 -> 拋出 400 Bad Request
         //檢查庫存是否滿足本次購買數量
         if (targetProduct.getStock() >= quantity){
             //扣除對應的數量並更新資料表
