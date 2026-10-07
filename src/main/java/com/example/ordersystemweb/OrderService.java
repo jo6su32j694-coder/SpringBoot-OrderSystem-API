@@ -1,12 +1,14 @@
 package com.example.ordersystemweb;
 
-import org.aspectj.weaver.ast.Or;
+
 import org.springframework.beans.factory.annotation.Autowired;
+import org.springframework.data.domain.Page;
+import org.springframework.data.domain.PageRequest;
+import org.springframework.data.domain.Pageable;
+import org.springframework.data.domain.Sort;
 import org.springframework.http.HttpStatus;
 import org.springframework.stereotype.Service;
 import jakarta.annotation.PostConstruct;
-import org.springframework.web.bind.annotation.GetMapping;
-
 import java.util.List;
 
 @Service //關鍵註解：讓 Spring Boot 知道這是一個Service組件
@@ -43,7 +45,12 @@ public class OrderService {
     }
 
     //業務邏輯：處理購買與扣除資料庫庫存
-    public String processPurchase(String itemName){
+    //新增數量參數
+    public String processPurchase(String itemName, int quantity){
+        //防禦性程式設計：購買數量不能少於 1
+        if(quantity < 1){
+            throw new BusinessException("購買數量必須大於 0",HttpStatus.BAD_REQUEST);
+        }
         Product targetProduct = productRepository.findById(itemName).orElse(null);
 
         //1.找不到商品 -> 拋出 404 Not found
@@ -52,23 +59,29 @@ public class OrderService {
         }
 
         //2.庫存不足 -> 拋出 400 Bad Request
-        if (targetProduct.getStock()>0){
-            //扣除庫存並更新資料表
-            targetProduct.setStock(targetProduct.getStock()-1);
+        //檢查庫存是否滿足本次購買數量
+        if (targetProduct.getStock() >= quantity){
+            //扣除對應的數量並更新資料表
+            targetProduct.setStock(targetProduct.getStock()-quantity);
             productRepository.save(targetProduct);
 
             //建立訂單物件，並存入 orders 資料表中
-            Order newOrder = new Order(targetProduct,1);//購買一個
+            Order newOrder = new Order(targetProduct,quantity);//傳入動態數量，內部會自動計算totalPrice
             orderRepository.save(newOrder);//儲存訂單到資料庫
 
-            return "購買成功！「"+targetProduct.getName()+"」已加入購物車，並生成訂單編號 #"+newOrder.getId();
+            return "購買成功！「"+targetProduct.getName()+"」×"+quantity+"已加入購物車，並生成訂單編號 #"+newOrder.getId();
         }else{
-            throw new BusinessException("商品「"+targetProduct.getName()+"」已售罄，無法購買！",HttpStatus.BAD_REQUEST);
+            throw new BusinessException("商品「"+targetProduct.getName()+"」庫存不足！目前剩餘庫存："+targetProduct.getStock()+"，您預計購買："+quantity,HttpStatus.BAD_REQUEST);
         }
     }
 
     //獲取所有歷史訂單紀錄
-    public List<Order> getAllOrders(){
-        return orderRepository.findAll();
+    //分頁與排序業務邏輯
+    public Page<Order> getAllOrders(int page,int size){
+        //設定分頁參數：第 page 頁(從 0 開始算)、每頁 size 筆，並依造id進行降序(descending)排列，讓最新的訂單在最前面
+        Pageable pageable = PageRequest.of(page, size, Sort.by("id").descending());
+
+        //JpaRepository 內建支援傳入 Pageable, 會自動去 MySQL 執行 LIMIT 和 OFFSET
+        return orderRepository.findAll(pageable);
     }
 }

@@ -1,8 +1,8 @@
 package com.example.ordersystemweb;
 
-import org.aspectj.weaver.ast.Or;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.web.bind.annotation.*;
+import org.springframework.data.domain.Page;
 import java.util.List;
 
 @RestController
@@ -28,17 +28,26 @@ public class OrderController {
         return Result.success("成功獲取所有商品清單",products);
     }
 
+    //修改後的購買 API:支援傳入數量參數(若不傳入預設為 1 )
     @PostMapping("/buy")
-    public Result<String> buyItem(@RequestParam String itemName){
-        String successMessage = orderService.processPurchase(itemName);
+    public Result<String> buyItem(
+            @RequestParam String itemName,
+            @RequestParam (defaultValue = "1") int quantity){
+        //將數量一起傳給 Service 處理
+        String successMessage = orderService.processPurchase(itemName,quantity);
         //包裹後回傳：success=true,message=購買成功!...
         return Result.success(successMessage);
     }
 
     //監聽獲取歷史訂單的 Get 請求
     @GetMapping("/order-list")
-    public Result<List<Order>> getOrderList(){
-        List<Order> orders = orderService.getAllOrders();
-        return Result.success("成功獲取歷史訂單紀錄",orders);
+    //修改後的訂單清單 API:支援分頁與排序
+    //網址範例: /api/order-list?page=0&size=5
+    public Result<Page<Order>> getOrderList(
+            @RequestParam(defaultValue = "0")int page,
+            @RequestParam(defaultValue = "5")int size){
+        //呼叫 Service 獲取分頁後的訂單資料
+        Page<Order> orderPage = orderService.getAllOrders(page,size);
+        return Result.success("成功獲取歷史訂單紀錄",orderPage);
     }
 }
